@@ -97,7 +97,7 @@ uint32_t KinectProc()
 		// 深度イメージを取得する
 		hImage = k4a_capture_get_depth_image( hCapture );
 
-		// キャプチャーを開放する
+		// キャプチャーを解放する
 		k4a_capture_release( hCapture );
 
 		if ( hImage )
@@ -110,7 +110,7 @@ uint32_t KinectProc()
 				uImageSize = (uint32_t) k4a_image_get_size( hImage );
 				CopyMemory( g_pDepthMap, p, uImageSize );
 			}
-			// イメージを開放する
+			// イメージを解放する
 			k4a_image_release( hImage );
 		}
 	}
@@ -128,17 +128,19 @@ void WriteCSV()
 		for( int y = 0; y < RESOLUTION_HEIGHT; y++ )
 		{
 			// 深度情報を CSV に出力
-			char szText[8192] = "";
+			char szTmp[8];
+			char szText[RESOLUTION_WIDTH * sizeof(szTmp)] = "";
 			for( int x = 0; x < RESOLUTION_WIDTH; x++ )
 			{
-				const WORD w = g_pDepthMap[y * RESOLUTION_WIDTH + x];
-				sprintf_s( szText, 8192, "%s%d,", szText, w );
+				const BYTE c = g_pDepthMap[y * RESOLUTION_WIDTH + x];
+				sprintf_s( szTmp, 8, "%d,", c );
+				strcat_s( szText, RESOLUTION_WIDTH * sizeof(szTmp), szTmp );
 			}
 
 			// 改行してファイル出力
+			strcat_s( szText, RESOLUTION_WIDTH * sizeof(szTmp), "\r\n" );
+			const DWORD dwLen = (DWORD) strlen( szText );
 			DWORD dwWritten;
-			DWORD dwLen = (DWORD) strlen( szText );
-			strcpy_s( &szText[dwLen - 1], 8192, "\r\n" );
 			WriteFile( hFile, szText, dwLen, &dwWritten, NULL );
 		}
 		CloseHandle( hFile );
@@ -232,7 +234,9 @@ HRESULT InitApp( HINSTANCE hInst, int nCmdShow )
 
 	// 深度マップ用バッファを作成
 	g_pDepthMap = new UINT16[RESOLUTION_WIDTH * RESOLUTION_HEIGHT];
+	memset( g_pDepthMap, 0, RESOLUTION_WIDTH * RESOLUTION_HEIGHT * sizeof(UINT16) );
 
+	// ウィンドウを表示する
 	ShowWindow( g_hWnd, nCmdShow );
 	UpdateWindow( g_hWnd );
 
@@ -242,14 +246,14 @@ HRESULT InitApp( HINSTANCE hInst, int nCmdShow )
 // アプリケーションの後始末
 HRESULT UninitApp()
 {
-	// 深度マップを開放する
+	// 深度マップを解放する
 	if ( g_pDepthMap )
 	{
 		delete [] g_pDepthMap;
 		g_pDepthMap = NULL;
 	}
 
-	// 画面表示用のビットマップを開放する
+	// 画面表示用のビットマップを解放する
 	if ( g_hDCBMP || g_hBMP )
 	{
 		SelectObject( g_hDCBMP, g_hBMPold );
